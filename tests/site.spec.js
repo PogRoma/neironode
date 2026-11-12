@@ -36,6 +36,7 @@ for (const width of [320, 375, 768, 1440]) {
     }
     expect(errors).toEqual([]);
     await page.goto("/");
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.screenshot({
       path: `test-results/site-${width}.png`,
       fullPage: true,
@@ -92,4 +93,46 @@ test("content and navigation work without JavaScript", async ({ browser }) => {
     ),
   ).toBe(true);
   await context.close();
+});
+
+
+test("reduced motion keeps all content visible and disables smooth scrolling", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("auto");
+  for (const section of await page.locator("[data-reveal]").all()) {
+    await expect(section).toHaveCSS("opacity", "1");
+    await expect(section).toHaveCSS("transform", "none");
+  }
+  await page.getByRole("link", { name: "Обсудить проект" }).click();
+  await expect(page.getByRole("heading", { name: "Что вы хотите сделать проще?" })).toBeInViewport();
+});
+
+test("scrolling reveals content and the sticky navigation stays available", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#approach").scrollIntoViewIfNeeded();
+  await expect(page.locator("#approach")).toHaveCSS("opacity", "1");
+  await expect(page.locator(".header")).toBeInViewport();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const section of await page.locator("[data-reveal]").all()) {
+    await expect(section).toHaveCSS("opacity", "1");
+  }
+});
+
+test("mobile menu closes outside and keyboard focus can leave it", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/");
+  const menu = page.getByRole("button", { name: "Меню" });
+  await menu.click();
+  await page.locator(".hero-description").click();
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  await menu.click();
+  await page.getByRole("link", { name: "На связи" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("link", { name: "Обсудить проект" })).toBeFocused();
+  await menu.click();
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("link", { name: "Что делаем" })).toBeVisible();
 });

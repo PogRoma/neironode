@@ -2,6 +2,6 @@
  * telegramUsername: имя без @, например реальное имя команды.
  * Оставьте пустым, пока контакт не подтверждён. */
 window.SITE_CONFIG = Object.freeze({
-  brandName: "НЕЙРОНОД",
+  brandName: "Neironode",
   telegramUsername: "",
 });
